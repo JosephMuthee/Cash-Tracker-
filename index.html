@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b3d2e"><link rel="manifest" href="manifest.json"><title>THEE Onset Enterprise</title>
+<style>
+:root{--bg:#f3f6f4;--card:#fff;--tx:#10231b;--mu:#6b7c74;--g:#0b3d2e;--g2:#1fa76b;--gold:#e8b100;--red:#d64545;--bd:#e3e9e5}
+@media(prefers-color-scheme:dark){:root{--bg:#0c1511;--card:#15211b;--tx:#e8f1ec;--mu:#8da197;--bd:#233229}}
+*{box-sizing:border-box;margin:0;font-family:system-ui,sans-serif}body{background:var(--bg);color:var(--tx);padding-bottom:84px}
+header{background:linear-gradient(135deg,#0b3d2e,#1fa76b);color:#fff;padding:calc(env(safe-area-inset-top) + 18px) 18px 70px}
+header small{opacity:.8}header h1{font-size:30px;margin-top:4px}.wrap{padding:0 14px;margin-top:-52px}
+.card{background:var(--card);border-radius:18px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px #0001}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mu{color:var(--mu);font-size:12px}.in{color:var(--g2)}.out{color:var(--red)}h3{margin:6px 0 8px;font-size:15px}
+.bar{height:9px;background:var(--bd);border-radius:9px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--g2)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;color:var(--mu);padding:10px 0;font-size:11px}nav button.on{color:var(--g2);font-weight:700}nav b{display:block;font-size:19px}
+.fab{position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--gold);font-size:30px;box-shadow:0 4px 12px #0004}
+button.b{background:var(--g2);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-weight:600}button.s{background:var(--bd);color:var(--tx)}
+input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);margin:4px 0 8px;font-size:15px}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:flex-end;z-index:5}.modal>div{background:var(--card);width:100%;border-radius:22px 22px 0 0;padding:18px;max-height:88vh;overflow:auto}
+#lock{position:fixed;inset:0;background:linear-gradient(160deg,#0b3d2e,#0f6b49);color:#fff;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.dots{display:flex;gap:12px}.dots i{width:14px;height:14px;border-radius:50%;border:2px solid #fff}.dots i.f{background:var(--gold);border-color:var(--gold)}
+.pad{display:grid;grid-template-columns:repeat(3,70px);gap:12px}.pad button{height:70px;border-radius:50%;border:0;background:#ffffff22;color:#fff;font-size:24px}
+.sc{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:800;color:#fff}
+</style></head><body>
+<div id="lock"></div><div id="app" hidden></div><div id="m"></div>
+<script>
+const K='theeonset_v1',$=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=n=>'KSh '+Math.round(+n||0).toLocaleString(),day=d=>(d||new Date()).toISOString().slice(0,10),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+let db=JSON.parse(localStorage.getItem(K)||'null')||{tx:[],budgets:{Food:15000,Transport:6000,Rent:20000,Airtime:2000},goals:[],debts:[],assets:[],projects:[],set:{}};
+const save=()=>localStorage.setItem(K,JSON.stringify(db));let tab='home';
+const CATS=['Food','Transport','Rent','Airtime','Bills','Business','Stock','Salary','Sales','Savings','Debt','Other'];
+/* ---------- security ---------- */
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('tho'+s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+const NB=()=>window.Capacitor?.Plugins?.BiometricAuth;
+async function bio(){try{if(NB()){await NB().authenticate({reason:'Unlock THEE Onset Enterprise'});return true}
+ if(!db.set.cred)return false;const id=Uint8Array.from(atob(db.set.cred),c=>c.charCodeAt(0));
+ await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{id,type:'public-key'}],userVerification:'required',timeout:60000}});return true}catch(e){return false}}
+async function enableBio(){try{if(NB()){await NB().authenticate({reason:'Enable fingerprint'});db.set.bio=1}else{
+ const c=await navigator.credentials.create({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),rp:{name:'THEE Onset'},user:{id:crypto.getRandomValues(new Uint8Array(8)),name:'owner',displayName:'Owner'},pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required'}}});
+ db.set.cred=btoa(String.fromCharCode(...new Uint8Array(c.rawId)));db.set.bio=1}save();alert('Fingerprint enabled');render()}catch(e){alert('Fingerprint not available on this device/browser')}}
+let pin='',stage=db.set.pin?'enter':'new',first='';
+function lockUI(msg){const t={new:'Create a 4-digit PIN',confirm:'Confirm your PIN',enter:'Enter your PIN'}[stage];
+ $('lock').innerHTML=`<div style="font-size:42px">💰</div><h2>THEE Onset Enterprise</h2><div>${msg||t}</div><div class="dots">${[0,1,2,3].map(i=>`<i class="${i<pin.length?'f':''}"></i>`).join('')}</div>
+ <div class="pad">${[1,2,3,4,5,6,7,8,9,'👆',0,'⌫'].map(k=>`<button onclick="key('${k}')">${k}</button>`).join('')}</div>`}
+async function key(k){if(k==='👆'){if(db.set.bio&&await bio())return open();return lockUI('Fingerprint not set up')}
+ if(k==='⌫')pin=pin.slice(0,-1);else if(pin.length<4)pin+=k;lockUI();if(pin.length<4)return;const p=pin;pin='';
+ if(stage==='new'){first=p;stage='confirm';return lockUI()}
+ if(stage==='confirm'){if(p===first){db.set.pin=await sha(p);save();return open()}stage='new';return lockUI('PINs differ, try again')}
+ if(await sha(p)===db.set.pin)open();else lockUI('Wrong PIN')}
+function open(){$('lock').hidden=true;$('app').hidden=false;render()}
+/* ---------- calc ---------- */
+const mo=()=>day().slice(0,7),sum=a=>a.reduce((s,x)=>s+ +x.amt,0);
+function stats(){const m=db.tx.filter(t=>t.date.startsWith(mo())),i=sum(m.filter(t=>t.type=='in')),o=sum(m.filter(t=>t.type=='out'));
+ const bal=sum(db.tx.filter(t=>t.type=='in'))-sum(db.tx.filter(t=>t.type=='out')),assets=db.assets.reduce((s,a)=>s+ +a.value,0)+bal,
+ owe=db.debts.filter(d=>d.kind=='I owe').reduce((s,d)=>s+d.amt-d.paid,0),owed=db.debts.filter(d=>d.kind!='I owe').reduce((s,d)=>s+d.amt-d.paid,0);
+ const rate=i?(i-o)/i:0,bud=Object.entries(db.budgets),over=bud.filter(([c,l])=>sum(m.filter(t=>t.type=='out'&&t.cat==c))>l).length;
+ const score=Math.round(Math.max(0,Math.min(40,rate*200))+30*(1-Math.min(1,owe/Math.max(assets,1)))+(bud.length?30*(1-over/bud.length):30));
+ return{m,i,o,bal,assets,owe,owed,score,net:assets+owed-owe}}
+/* ---------- views ---------- */
+const bar=(v,t,c)=>`<div class="bar"><i style="width:${Math.min(100,t?v/t*100:0)}%;${c?'background:'+c:''}"></i></div>`;
+const txRow=t=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--bd)"><div><b>${esc(t.cat)}</b> <span class="mu">${t.acct}</span><div class="mu">${t.date} ${esc(t.note)}</div></div><div class="${t.type}"><b>${t.type=='in'?'+':'−'}${fmt(t.amt)}</b> <button class="s b" onclick="del('tx','${t.id}')">✕</button></div></div>`;
+function view(){const s=stats();
+ if(tab=='home'){const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const k=day(d);return[k.slice(5),sum(db.tx.filter(t=>t.type=='out'&&t.date==k))]}),mx=Math.max(1,...days.map(d=>d[1])),today=days[6][1];
+  const col=s.score>69?'#1fa76b':s.score>44?'#e8b100':'#d64545';
+  return`<header><small>Welcome back 👋</small><h1>THEE Onset Enterprise</h1></header><div class="wrap">
+  <div class="card"><div class="mu">Cash balance</div><h1>${fmt(s.bal)}</h1><div class="g2"><div><span class="mu">In (month)</span><div class="in"><b>${fmt(s.i)}</b></div></div><div><span class="mu">Out (month)</span><div class="out"><b>${fmt(s.o)}</b></div></div></div></div>
+  <div class="card row"><div><h3>Financial health</h3><div class="mu">Savings rate, debt load & budget discipline</div><div class="mu">Net worth: <b>${fmt(s.net)}</b></div></div><div class="sc" style="background:${col}">${s.score}</div></div>
+  <div class="g2"><div class="card"><div class="mu">Assets</div><b>${fmt(s.assets)}</b></div><div class="card"><div class="mu">I owe</div><b class="out">${fmt(s.owe)}</b></div><div class="card"><div class="mu">Owed to me</div><b class="in">${fmt(s.owed)}</b></div><div class="card"><div class="mu">Spent today</div><b>${fmt(today)}</b></div></div>
+  <div class="card"><h3>Daily usage · last 7 days</h3><div style="display:flex;align-items:flex-end;gap:6px;height:90px">${days.map(d=>`<div style="flex:1;text-align:center"><div style="height:${d[1]/mx*70}px;background:var(--g2);border-radius:5px 5px 0 0;min-height:2px"></div><div class="mu" style="font-size:10px">${d[0]}</div></div>`).join('')}</div></div>
+  <div class="card"><h3>Savings goals</h3>${db.goals.map(g=>`<div>${esc(g.name)} <span class="mu">${fmt(g.saved)} / ${fmt(g.target)}</span>${bar(g.saved,g.target,'var(--gold)')}</div>`).join('')||'<div class="mu">No goals yet — add one in Plan</div>'}</div>
+  <div class="card"><h3>Recent</h3>${db.tx.slice().reverse().slice(0,5).map(txRow).join('')||'<div class="mu">Tap + to record your first coin</div>'}</div></div>`}
+ if(tab=='money'){const f=db.tx.slice().sort((a,b)=>b.date.localeCompare(a.date));return`<div class="wrap" style="margin-top:20px"><h2>Money in & out</h2><div class="g2" style="margin:10px 0"><div class="card"><div class="mu">Personal bal.</div><b>${fmt(bal('Personal'))}</b></div><div class="card"><div class="mu">Business bal.</div><b>${fmt(bal('Business'))}</b></div></div><div class="card">${f.map(txRow).join('')||'<div class="mu">Nothing yet</div>'}</div></div>`}
+ if(tab=='plan')return`<div class="wrap" style="margin-top:20px"><div class="row"><h2>Budget</h2><button class="b" onclick="addBudget()">+ Budget</button></div><div class="card" style="margin-top:10px">${Object.entries(db.budgets).map(([c,l])=>{const u=sum(s.m.filter(t=>t.type=='out'&&t.cat==c));return`<div class="row"><b>${c}</b><span class="mu">${fmt(u)} / ${fmt(l)}</span></div>${bar(u,l,u>l?'var(--red)':'')}`}).join('')||'<div class="mu">No budgets</div>'}</div>
+  <div class="row"><h2>Saving goals</h2><button class="b" onclick="addGoal()">+ Goal</button></div>${db.goals.map(g=>`<div class="card"><div class="row"><b>${esc(g.name)}</b><span class="mu">by ${g.due||'—'}</span></div>${bar(g.saved,g.target,'var(--gold)')}<div class="row"><span>${fmt(g.saved)} of ${fmt(g.target)} (${Math.round(g.saved/g.target*100)}%)</span><span><button class="b" onclick="contrib('${g.id}')">Save</button> <button class="s b" onclick="del('goals','${g.id}')">✕</button></span></div></div>`).join('')}</div>`;
+ if(tab=='wealth')return`<div class="wrap" style="margin-top:20px">${sec('Assets','assets','addAsset()',a=>`<b>${esc(a.name)}</b> <span class="mu">${a.type}</span><br>${fmt(a.value)}`)}${sec('Debts & loans','debts','addDebt()',d=>`<b>${esc(d.name)}</b> <span class="mu">${d.kind} · due ${d.due||'—'}</span>${bar(d.paid,d.amt)}${fmt(d.paid)} / ${fmt(d.amt)} <button class="b" onclick="payDebt('${d.id}')">Pay</button>`)}${sec('Projects','projects','addProj()',p=>`<b>${esc(p.name)}</b> <span class="mu">${p.status}</span>${bar(p.spent,p.budget,p.spent>p.budget?'var(--red)':'')}${fmt(p.spent)} / ${fmt(p.budget)} <button class="b" onclick="spendProj('${p.id}')">+ Spend</button>`)}</div>`;
+ return`<div class="wrap" style="margin-top:20px"><div class="card"><h3>Security</h3><button class="b" onclick="enableBio()">${db.set.bio?'Fingerprint ON ✓':'Enable fingerprint'}</button> <button class="s b" onclick="chPin()">Change PIN</button></div>
+ <div class="card"><h3>Google Sheet backend</h3><input id="url" placeholder="Apps Script Web App URL" value="${esc(db.set.url)}"><div class="row"><button class="b" onclick="sync('push')">⬆ Backup to Sheet</button><button class="b" onclick="sync('pull')">⬇ Restore</button></div><div class="mu" id="st">${db.set.last?'Last sync '+db.set.last:'Not synced yet'}</div></div>
+ <div class="card"><button class="s b" onclick="exportCsv()">Export CSV</button></div></div>`}
+const bal=a=>sum(db.tx.filter(t=>t.acct==a&&t.type=='in'))-sum(db.tx.filter(t=>t.acct==a&&t.type=='out'));
+const sec=(t,k,fn,r)=>`<div class="row"><h2>${t}</h2><button class="b" onclick="${fn}">+ Add</button></div>${db[k].map(x=>`<div class="card row"><div style="flex:1">${r(x)}</div><button class="s b" onclick="del('${k}','${x.id}')">✕</button></div>`).join('')||'<div class="mu" style="margin:8px 0">Nothing yet</div>'}`;
+function render(){$('app').innerHTML=view()+`<button class="fab" onclick="addTx()">+</button><nav>${[['home','🏠','Home'],['money','💸','Money'],['plan','🎯','Plan'],['wealth','🏦','Wealth'],['more','⚙️','More']].map(([k,i,l])=>`<button class="${tab==k?'on':''}" onclick="tab='${k}';render();scrollTo(0,0)"><b>${i}</b>${l}</button>`).join('')}</nav>`}
+/* ---------- forms ---------- */
+function form(title,fields,ok){$('m').innerHTML=`<div class="modal"><div><h3>${title}</h3>${fields.map(f=>`<label class="mu">${f[1]}</label>${f[2]=='sel'?`<select id="f_${f[0]}">${f[3].map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="f_${f[0]}" type="${f[2]}" value="${f[3]||''}">`}`).join('')}<div class="row"><button class="s b" onclick="$('m').innerHTML=''">Cancel</button><button class="b" id="ok">Save</button></div></div></div>`;
+ $('ok').onclick=()=>{const v={};fields.forEach(f=>v[f[0]]=$('f_'+f[0]).value);if(ok(v)!==false){$('m').innerHTML='';save();render()}}}
+const num=v=>Math.abs(+v)||0;
+const addTx=()=>form('New transaction',[['type','Type','sel',['out','in']],['amt','Amount (KSh)','number'],['cat','Category','sel',CATS],['acct','Account','sel',['Personal','Business']],['date','Date','date',day()],['note','Note','text']],v=>{if(!num(v.amt))return false;db.tx.push({id:uid(),...v,amt:num(v.amt)})});
+const addBudget=()=>form('Monthly budget',[['c','Category','sel',CATS],['l','Limit','number']],v=>{db.budgets[v.c]=num(v.l)});
+const addGoal=()=>form('Saving goal',[['name','Goal','text'],['target','Target','number'],['due','Target date','date']],v=>{if(!v.name||!num(v.target))return false;db.goals.push({id:uid(),name:v.name,target:num(v.target),saved:0,due:v.due})});
+const addAsset=()=>form('Asset',[['name','Name','text'],['type','Type','sel',['Cash/M-Pesa','Bank','Land','Vehicle','Stock/Inventory','Investment','Other']],['value','Value','number']],v=>{if(!v.name)return false;db.assets.push({id:uid(),name:v.name,type:v.type,value:num(v.value)})});
+const addDebt=()=>form('Debt / loan',[['name','Person / lender','text'],['kind','Type','sel',['I owe','Owed to me']],['amt','Amount','number'],['due','Due date','date']],v=>{if(!v.name||!num(v.amt))return false;db.debts.push({id:uid(),name:v.name,kind:v.kind,amt:num(v.amt),paid:0,due:v.due})});
+const addProj=()=>form('Project',[['name','Name','text'],['budget','Budget','number'],['status','Status','sel',['Planning','Active','Paused','Done']]],v=>{if(!v.name)return false;db.projects.push({id:uid(),name:v.name,budget:num(v.budget),spent:0,status:v.status})});
+const log=(type,amt,cat,note)=>db.tx.push({id:uid(),type,amt,cat,acct:'Personal',date:day(),note});
+const contrib=id=>form('Add to savings',[['a','Amount','number']],v=>{const g=db.goals.find(x=>x.id==id),a=num(v.a);if(!a)return false;g.saved+=a;log('out',a,'Savings','Goal: '+g.name)});
+const payDebt=id=>form('Record payment',[['a','Amount','number']],v=>{const d=db.debts.find(x=>x.id==id),a=Math.min(num(v.a),d.amt-d.paid);if(!a)return false;d.paid+=a;log(d.kind=='I owe'?'out':'in',a,'Debt',d.name)});
+const spendProj=id=>form('Project spend',[['a','Amount','number']],v=>{const p=db.projects.find(x=>x.id==id),a=num(v.a);if(!a)return false;p.spent+=a;db.tx.push({id:uid(),type:'out',amt:a,cat:'Business',acct:'Business',date:day(),note:'Project: '+p.name})});
+const del=(k,id)=>{if(confirm('Delete?')){db[k]=db[k].filter(x=>x.id!=id);save();render()}};
+const chPin=()=>{db.set.pin=null;save();stage='new';pin='';$('lock').hidden=false;lockUI()};
+const exportCsv=()=>{const r=['date,type,account,category,amount,note',...db.tx.map(t=>[t.date,t.type,t.acct,t.cat,t.amt,'"'+(t.note||'').replace(/"/g,'""')+'"'].join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r],{type:'text/csv'}));a.download='thee-onset.csv';a.click()};
+async function sync(mode){const u=$('url').value.trim();if(!u)return alert('Paste your Apps Script URL first');db.set.url=u;const st=$('st');st.textContent='Working…';
+ try{const {set,...data}=db;const r=await fetch(u,{method:'POST',body:JSON.stringify({mode,data})});const j=await r.json();
+  if(mode=='pull'){if(!j.data)throw 0;db={...j.data,set:db.set}}db.set.last=new Date().toLocaleString();save();render();alert(mode=='push'?'Backed up to Google Sheet ✓':'Restored ✓')}catch(e){st.textContent='Sync failed — check URL & deployment access ("Anyone")'}}
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
+lockUI();
+</script></body></html>
